@@ -1,0 +1,259 @@
+/*
+ * HVAC Services design system.
+ * Tokens live in @theme (usable as Tailwind utilities: bg-teal-900, text-orange-ink, font-display...).
+ * Component classes below keep buttons, cards, forms and article typography identical on every page.
+ */
+@import 'tailwindcss';
+
+@source '../views/**/*.blade.php';
+@source '../../app/**/*.php';
+
+/* Self-hosted fonts (SIL Open Font License). Bebas Neue by Ryoichi Tsunekawa / Dharma Type. */
+@font-face {
+    font-family: 'Bebas Neue';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('../fonts/bebas-neue-latin-400.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('../fonts/inter-latin-wght.woff2') format('woff2');
+}
+
+@theme {
+    /* Brand palette (from the existing site) */
+    --color-orange: #FF5722;
+    --color-orange-600: #E64A19;
+    --color-orange-ink: #C63D0F;   /* small orange text on light backgrounds — 5.1:1 on white */
+    --color-orange-50: #FFF3EE;
+    --color-teal-950: #0A1F2B;
+    --color-teal-900: #0E2938;
+    --color-teal-800: #153445;
+    --color-teal-700: #1E4155;
+    --color-teal-600: #2A5670;
+    --color-mint: #EBF5F6;
+    --color-mint-200: #D3EAED;
+    --color-page: #F8F9FA;
+    --color-ink: #111827;
+    --color-body: #4B5563;
+    --color-muted: #6B7280;
+    --color-line: #E5E7EB;
+    --color-on-dark: #D7E2E8;      /* body text on teal — 10:1 */
+    --color-on-dark-muted: #A9BCC7;
+
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-display: 'Bebas Neue', 'Impact', 'Arial Narrow', sans-serif;
+
+    /* Fluid type scale */
+    --text-hero: clamp(3.25rem, 2.1rem + 4.6vw, 5.5rem);
+    --text-page: clamp(2.875rem, 2.1rem + 3vw, 4.5rem);
+    --text-h2: clamp(2.375rem, 1.8rem + 2.2vw, 3.75rem);
+    --text-h3: clamp(1.75rem, 1.5rem + 0.9vw, 2.375rem);
+    --text-lead: clamp(1.0625rem, 1rem + 0.3vw, 1.1875rem);
+
+    --radius-card: 16px;
+    --radius-button: 10px;
+
+    --shadow-card: 0 1px 2px rgba(14, 41, 56, 0.04), 0 12px 32px -12px rgba(14, 41, 56, 0.12);
+    --shadow-lift: 0 2px 4px rgba(14, 41, 56, 0.05), 0 22px 44px -16px rgba(14, 41, 56, 0.22);
+    --shadow-header: 0 6px 24px -12px rgba(14, 41, 56, 0.25);
+
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+    :root {
+        --gradient-orange: linear-gradient(135deg, #FF5722 0%, #E64A19 100%);
+        --gradient-teal: linear-gradient(135deg, #0E2938 0%, #153445 55%, #1E4155 100%);
+        --gradient-hero: linear-gradient(90deg, rgba(14, 41, 56, 0.96) 0%, rgba(14, 41, 56, 0.84) 46%, rgba(14, 41, 56, 0.2) 100%);
+        --gradient-light: linear-gradient(180deg, #FFFFFF 0%, #F8F9FA 100%);
+        --header-h: 76px;
+    }
+
+    html {
+        -webkit-text-size-adjust: 100%;
+        scroll-padding-top: calc(var(--header-h) + 16px);
+    }
+
+    body {
+        @apply bg-page font-sans text-body antialiased;
+        font-size: 1rem;
+        line-height: 1.65;
+        font-feature-settings: 'cv11', 'ss01';
+        text-rendering: optimizeLegibility;
+    }
+
+    @media (min-width: 768px) {
+        body { font-size: 1.0625rem; }
+    }
+
+    h1, h2, h3, h4 { @apply text-ink; text-wrap: balance; }
+    p { text-wrap: pretty; }
+
+    :focus-visible {
+        outline: 3px solid var(--color-orange);
+        outline-offset: 3px;
+        border-radius: 4px;
+    }
+
+    ::selection { background: #FFD6C7; color: var(--color-ink); }
+
+    [x-cloak] { display: none !important; }
+}
+
+@layer components {
+    .container-site {
+        @apply mx-auto w-full px-5 sm:px-6 lg:px-8;
+        max-width: 1320px;
+    }
+
+    /* Display typography (Bebas Neue) — short headings only */
+    .display { font-family: var(--font-display); font-weight: 400; letter-spacing: 0.01em; line-height: 0.95; }
+    .h-hero { font-family: var(--font-display); font-weight: 400; letter-spacing: 0.01em; font-size: var(--text-hero); line-height: 0.92; }
+    .h-page { font-family: var(--font-display); font-weight: 400; letter-spacing: 0.01em; font-size: var(--text-page); line-height: 0.95; }
+    .h-section { font-family: var(--font-display); font-weight: 400; letter-spacing: 0.01em; font-size: var(--text-h2); line-height: 0.95; }
+    .h-card { font-family: var(--font-display); font-weight: 400; letter-spacing: 0.01em; font-size: var(--text-h3); line-height: 1; }
+
+    .eyebrow {
+        @apply inline-flex items-center gap-2 text-[0.8125rem] font-semibold tracking-[0.08em] text-orange-ink uppercase;
+    }
+    .eyebrow::before { content: ''; @apply h-0.5 w-6 rounded-full bg-orange; }
+    .on-dark .eyebrow { @apply text-orange; }
+
+    .lead { font-size: var(--text-lead); line-height: 1.7; }
+
+    /* Buttons */
+    .btn {
+        @apply inline-flex min-h-12 items-center justify-center gap-2.5 rounded-[var(--radius-button)] px-6 text-[0.9375rem] font-semibold whitespace-nowrap select-none;
+        transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out), background-color 200ms, color 200ms, border-color 200ms;
+    }
+    .btn svg { @apply size-[1.15em] shrink-0; }
+    .btn:active { transform: translateY(0) scale(0.985); }
+    .btn-lg { @apply min-h-14 px-7 text-base; }
+    .btn-sm { @apply min-h-11 px-4 text-sm; }
+
+    /* Orange with deep-teal text: 4.7:1 contrast (white on #FF5722 would only be 3.2:1). */
+    .btn-primary {
+        @apply text-teal-900;
+        background: var(--gradient-orange);
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 10px 22px -10px rgba(230, 74, 25, 0.7);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 16px 28px -12px rgba(230, 74, 25, 0.75); filter: brightness(1.04); }
+
+    .btn-dark { @apply bg-teal-900 text-white; }
+    .btn-dark:hover { @apply bg-teal-800; transform: translateY(-1px); }
+
+    .btn-outline { @apply border border-line bg-white text-ink; }
+    .btn-outline:hover { @apply border-teal-900/30; transform: translateY(-1px); box-shadow: var(--shadow-card); }
+
+    .btn-ghost-light { @apply border border-white/30 bg-white/5 text-white backdrop-blur-[2px]; }
+    .btn-ghost-light:hover { @apply border-white/60 bg-white/10; transform: translateY(-1px); }
+
+    .link-arrow {
+        @apply inline-flex items-center gap-1.5 font-semibold text-teal-900;
+    }
+    .link-arrow svg { @apply size-4 text-orange-ink; transition: transform 200ms var(--ease-out); }
+    .link-arrow:hover svg, .group:hover .link-arrow svg { transform: translateX(3px); }
+    .on-dark .link-arrow { @apply text-white; }
+    .on-dark .link-arrow svg { @apply text-orange; }
+
+    .text-link { @apply font-medium text-teal-900 underline decoration-orange/60 decoration-2 underline-offset-[3px]; }
+    .text-link:hover { @apply decoration-orange; }
+
+    /* Cards */
+    .card {
+        @apply rounded-[var(--radius-card)] border border-line bg-white;
+        box-shadow: var(--shadow-card);
+    }
+    .card-hover { transition: transform 250ms var(--ease-out), box-shadow 250ms var(--ease-out), border-color 250ms; }
+    .card-hover:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); @apply border-teal-900/15; }
+    .card-hover .zoom-img { transition: transform 600ms var(--ease-out); }
+    .card-hover:hover .zoom-img { transform: scale(1.035); }
+
+    .icon-chip {
+        @apply inline-flex size-12 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-ink;
+    }
+    .icon-chip svg { @apply size-6; }
+    .on-dark .icon-chip { @apply bg-white/8 text-orange; }
+
+    .surface-teal { background: var(--gradient-teal); @apply text-on-dark; }
+    .surface-teal h1, .surface-teal h2, .surface-teal h3, .surface-teal h4 { @apply text-white; }
+
+    .section { @apply py-18 md:py-24; }
+    .section-tight { @apply py-14 md:py-18; }
+
+    /* Forms */
+    .field-label { @apply mb-1.5 block text-sm font-semibold text-ink; }
+    .field-hint { @apply mt-1.5 text-[0.8125rem] text-muted; }
+    .field-error { @apply mt-1.5 flex items-center gap-1.5 text-[0.8125rem] font-medium text-[#B42318]; }
+    .input {
+        @apply block min-h-12 w-full rounded-[var(--radius-button)] border border-[#D1D5DB] bg-white px-4 py-3 text-base text-ink placeholder:text-[#8A94A3];
+        transition: border-color 150ms, box-shadow 150ms;
+    }
+    .input:hover { @apply border-[#9CA3AF]; }
+    .input:focus { outline: none; @apply border-teal-700; box-shadow: 0 0 0 4px rgba(30, 65, 85, 0.14); }
+    .input[aria-invalid='true'] { @apply border-[#D92D20]; }
+    select.input {
+        @apply appearance-none pr-10;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' stroke='%234B5563' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.85rem center;
+    }
+
+    /* Breadcrumbs */
+    .breadcrumb { @apply flex flex-wrap items-center gap-x-2 gap-y-1 text-sm; }
+    .breadcrumb a { @apply hover:underline; }
+
+    /* Long-form article typography. Headings use Inter for readability, not Bebas Neue. */
+    .prose-article { @apply text-[1.0625rem] leading-[1.8] text-[#374151]; }
+    .prose-article > * + * { margin-top: 1.25em; }
+    .prose-article h2 { @apply mt-12 scroll-mt-28 text-[1.625rem] leading-tight font-bold tracking-[-0.01em] text-ink md:text-[1.875rem]; }
+    .prose-article h3 { @apply mt-9 text-[1.25rem] leading-snug font-semibold text-ink md:text-[1.375rem]; }
+    .prose-article h4 { @apply mt-7 text-lg font-semibold text-ink; }
+    .prose-article a { @apply font-medium text-teal-900 underline decoration-orange/60 decoration-2 underline-offset-[3px] hover:decoration-orange; }
+    .prose-article strong { @apply font-semibold text-ink; }
+    .prose-article ul, .prose-article ol { @apply space-y-2 pl-6; }
+    .prose-article ul { list-style: none; }
+    .prose-article ul > li { @apply relative; }
+    .prose-article ul > li::before { content: ''; @apply absolute top-[0.72em] -left-5 size-2 rounded-full bg-orange; }
+    .prose-article ol { @apply list-decimal marker:font-semibold marker:text-orange-ink; }
+    .prose-article blockquote { @apply border-l-4 border-orange bg-white py-3 pr-4 pl-5 text-lg text-ink italic; }
+    .prose-article img { @apply h-auto max-w-full rounded-[var(--radius-card)]; }
+    .prose-article figcaption { @apply mt-2 text-sm text-muted; }
+    .prose-article table { @apply w-full border-collapse overflow-hidden rounded-xl text-[0.9375rem]; display: block; overflow-x: auto; }
+    .prose-article th { @apply border-b-2 border-line bg-mint px-4 py-3 text-left font-semibold text-ink; }
+    .prose-article td { @apply border-b border-line px-4 py-3 align-top; }
+    .prose-article .align-center { text-align: center; }
+    .prose-article .align-right { text-align: right; }
+    .prose-article .align-justify { text-align: justify; }
+    .prose-article > :first-child { margin-top: 0; }
+
+    .callout { @apply my-8 rounded-[var(--radius-card)] border px-5 py-4 md:px-6 md:py-5; }
+    .callout p { margin: 0; }
+    .callout .callout-title { @apply mb-1 text-[0.8125rem] font-bold tracking-[0.06em] uppercase; }
+    .callout-tip { @apply border-mint-200 bg-mint; }
+    .callout-tip .callout-title { @apply text-teal-700; }
+    .callout-safety { @apply border-[#FECDCA] bg-[#FEF3F2]; }
+    .callout-safety .callout-title { @apply text-[#B42318]; }
+    .callout-key { @apply border-[#FFD8C9] bg-orange-50; }
+    .callout-key .callout-title { @apply text-orange-ink; }
+
+    /* Reveal on scroll — runs once, disabled for reduced motion (see app.js) */
+    .reveal { opacity: 0; transform: translateY(14px); transition: opacity 500ms var(--ease-out), transform 500ms var(--ease-out); }
+    .reveal.is-visible { opacity: 1; transform: none; }
+    .no-js .reveal { opacity: 1; transform: none; }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    .reveal { opacity: 1; transform: none; }
+}
