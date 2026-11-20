@@ -25,9 +25,23 @@ Alpine.data('siteHeader', () => ({
 Alpine.data('dropdown', () => ({
     open: false,
     timer: null,
-    show() { clearTimeout(this.timer); this.open = true; },
-    hide(delay = 120) { clearTimeout(this.timer); this.timer = setTimeout(() => { this.open = false; }, delay); },
-    toggle() { this.open = !this.open; },
+    hoverAt: 0,
+    show() {
+        clearTimeout(this.timer);
+        if (!this.open) this.hoverAt = Date.now();
+        this.open = true;
+    },
+    hide(delay = 120) {
+        clearTimeout(this.timer);
+        this.timer = setTimeout(() => { this.open = false; }, delay);
+    },
+    toggle() {
+        clearTimeout(this.timer);
+        if (this.open && Date.now() - this.hoverAt < 450) {
+            return;
+        }
+        this.open = !this.open;
+    },
 }));
 
 // Client-side filter for the state directory (the full list is server-rendered, so it works without JS).

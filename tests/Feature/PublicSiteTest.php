@@ -311,4 +311,176 @@ class PublicSiteTest extends SeededTestCase
         $this->assertSame([], array_intersect($searchIds1, $searchIds2));
         $this->assertCount(15, array_unique(array_merge($searchIds1, $searchIds2)));
     }
+
+    public function test_five_new_service_pages_render_with_seo_cms_sitemap_and_idempotent_seeding(): void
+    {
+        $newServices = [
+            'hvac-installation' => [
+                'title' => 'Residential HVAC Installation Services',
+                'h1' => 'Professional HVAC installation options for your home',
+                'seo_title' => 'Residential HVAC Installation Services | HVAC Services',
+            ],
+            'hvac-replacement' => [
+                'title' => 'Residential HVAC Replacement Services',
+                'h1' => 'Ready to replace your home\'s HVAC system?',
+                'seo_title' => 'Residential HVAC Replacement Services | HVAC Services',
+            ],
+            'heating' => [
+                'title' => 'Residential Heating Services',
+                'h1' => 'Keep your home comfortable with reliable heating options',
+                'seo_title' => 'Residential Heating Services | Furnace & Home Heating Help',
+            ],
+            'heat-pump' => [
+                'title' => 'Residential Heat Pump Services',
+                'h1' => 'Explore energy-efficient heating and cooling with heat pumps',
+                'seo_title' => 'Residential Heat Pump Services | Installation, Repair & Tune-Ups',
+            ],
+            'ductless' => [
+                'title' => 'Residential Ductless Mini-Split Services',
+                'h1' => 'Flexible heating and cooling for your home',
+                'seo_title' => 'Residential Ductless Mini-Split Services | Room-by-Room HVAC',
+            ],
+        ];
+
+        $countBefore = Service::count();
+        $this->seed(\Database\Seeders\CoreSeeder::class);
+        $this->assertSame($countBefore, Service::count(), 'CoreSeeder must be idempotent and never duplicate services');
+
+        $sitemapXml = $this->get('/sitemap-services.xml')->assertOk()->getContent();
+        $llmsTxt = $this->get('/llms.txt')->assertOk()->getContent();
+        $directoryHtml = $this->get('/services')->assertOk()->getContent();
+
+        $seenSeoTitles = [];
+        $seenDescriptions = [];
+
+        foreach ($newServices as $slug => $expected) {
+            $service = Service::where('slug', $slug)->firstOrFail();
+            $this->assertTrue($service->is_published);
+            $this->assertSame($expected['title'], $service->title);
+            $this->assertGreaterThanOrEqual(3, $service->relatedServices()->published()->count());
+            $this->assertGreaterThanOrEqual(3, count($service->faqList()));
+
+            $url = "/services/{$slug}";
+            $response = $this->get($url)->assertOk();
+            $html = $response->getContent();
+
+            $response->assertSee($expected['h1'])
+                ->assertSee('<title>'.e($expected['seo_title']).'</title>', false)
+                ->assertSee('<link rel="canonical" href="'.$service->publicUrl().'">', false)
+                ->assertSee('"@type":"BreadcrumbList"', false)
+                ->assertSee('"@type":"Service"', false)
+                ->assertSee('"@type":"FAQPage"', false)
+                ->assertSee('How the referral process works');
+
+            $this->assertSame(1, substr_count($html, '<h1'));
+            $this->assertNotContains($service->seo_title, $seenSeoTitles);
+            $this->assertNotContains($service->seo_description, $seenDescriptions);
+            $seenSeoTitles[] = $service->seo_title;
+            $seenDescriptions[] = $service->seo_description;
+
+            $this->assertStringContainsString($service->publicUrl().'<', $sitemapXml);
+            $this->assertStringContainsString($service->publicUrl(), $llmsTxt);
+            $this->assertStringContainsString('/services/'.$slug, $directoryHtml);
+
+            // Trailing slash redirects cleanly with 301
+            $req = \Illuminate\Http\Request::create("/services/{$slug}/");
+            $redir = app(\App\Http\Middleware\HandleRedirects::class)->handle($req, fn () => response('next'));
+            $this->assertSame(301, $redir->getStatusCode());
+            $this->assertSame(url($url), $redir->headers->get('Location'));
+        }
+
+        // Unpublishing a service removes it from public access and sitemap
+        $target = Service::where('slug', 'hvac-installation')->firstOrFail();
+        $target->update(['is_published' => false]);
+        $this->get('/services/hvac-installation')->assertNotFound();
+        $this->assertStringNotContainsString('/services/hvac-installation<', $this->get('/sitemap-services.xml')->getContent());
+        $target->update(['is_published' => true]);
+    }
+
+    public function test_complete_website_navigation_and_internal_link_audit(): void
+    {
+        $sourcePages = [
+            '/',
+            '/about',
+            '/services',
+            '/services/hvac-installation',
+            '/services/hvac-replacement',
+            '/services/heating',
+            '/services/heat-pump',
+            '/services/ductless',
+            '/services/ac-repair',
+            '/locations',
+            '/locations/texas',
+            '/locations/texas/houston',
+            '/blog',
+            Post::published()->first()->publicUrl(),
+            '/contact',
+            '/disclaimer',
+            '/call-hvac',
+            '/privacy-policy',
+            '/terms',
+            '/cookie-policy',
+            '/service-disclosures',
+        ];
+
+        $checkedUrls = [];
+        $failures = [];
+        $appHost = parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost';
+
+        foreach ($sourcePages as $source) {
+            $resp = $this->get($source);
+            if ($resp->status() !== 200) {
+                $failures[] = "Source page {$source} returned HTTP {$resp->status()}";
+                continue;
+            }
+
+            $html = $resp->getContent();
+            preg_match_all('/<a\b[^>]*\bhref="([^"]*)"/i', $html, $matches);
+
+            foreach ($matches[1] as $rawHref) {
+                $href = html_entity_decode(trim($rawHref));
+
+                if ($href === '' || $href === '#') {
+                    $failures[] = "Page {$source} contains an empty or bare '#' href attribute";
+                    continue;
+                }
+
+                if (str_starts_with($href, 'tel:') || str_starts_with($href, 'mailto:')) {
+                    continue;
+                }
+
+                if (str_starts_with($href, '#')) {
+                    $anchorId = substr($href, 1);
+                    if (! str_contains($html, 'id="'.$anchorId.'"')) {
+                        $failures[] = "Page {$source} links to missing anchor #{$anchorId}";
+                    }
+                    continue;
+                }
+
+                $parsed = parse_url($href);
+                if (isset($parsed['host']) && $parsed['host'] !== $appHost) {
+                    continue; // external link
+                }
+
+                $path = $parsed['path'] ?? '/';
+                if (str_ends_with(strtolower($path), '.html')) {
+                    $failures[] = "Page {$source} contains stale .html link: {$href}";
+                    continue;
+                }
+
+                $targetUrl = $path.(isset($parsed['query']) ? '?'.$parsed['query'] : '');
+                if (! isset($checkedUrls[$targetUrl])) {
+                    $targetResp = $this->get($targetUrl);
+                    $checkedUrls[$targetUrl] = $targetResp->status();
+                }
+
+                if ($checkedUrls[$targetUrl] !== 200) {
+                    $failures[] = "Broken link on {$source} -> {$targetUrl} (HTTP {$checkedUrls[$targetUrl]})";
+                }
+            }
+        }
+
+        $this->assertSame([], $failures, implode("\n", $failures));
+        $this->assertGreaterThan(35, count($checkedUrls));
+    }
 }

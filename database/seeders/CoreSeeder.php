@@ -129,13 +129,22 @@ class CoreSeeder extends Seeder
                 'is_featured' => $row['featured'],
                 'is_published' => true,
                 'sort_order' => $i,
-                'seo_title' => 'Residential '.$row['title'].' | HVAC Services',
+                'seo_title' => $row['seo_title'] ?? (str_starts_with($row['title'], 'Residential ') ? $row['title'].' | HVAC Services' : 'Residential '.$row['title'].' | HVAC Services'),
+                'seo_description' => $row['seo_description'] ?? $row['short'],
             ]);
         }
 
         foreach ($data as $row) {
             $service = Service::query()->where('slug', $row['slug'])->first();
             $service->relatedServices()->sync(Service::query()->whereIn('slug', $row['related'])->pluck('id'));
+        }
+
+        $serviceIds = Service::published()->pluck('id');
+        foreach (State::published()->get() as $state) {
+            $state->services()->syncWithoutDetaching($serviceIds);
+        }
+        foreach (\App\Models\City::published()->get() as $city) {
+            $city->services()->syncWithoutDetaching($serviceIds);
         }
     }
 

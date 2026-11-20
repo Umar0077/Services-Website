@@ -92,6 +92,31 @@
         </section>
     @endif
 
+    {{-- How the service connection process works --}}
+    @if (count($site->get('how_steps', [])))
+        <section class="section surface-teal on-dark relative isolate overflow-hidden" aria-labelledby="service-how-heading">
+            <div aria-hidden="true" class="absolute top-1/2 -left-40 -z-10 size-[480px] -translate-y-1/2 rounded-full bg-orange/[0.08] blur-3xl"></div>
+            <div class="container-site">
+                <x-section-heading id="service-how-heading" eyebrow="How the referral process works" title="Three steps to connect with" highlight="a local provider" align="center" class="reveal [&_.h-section]:text-white [&_.lead]:text-on-dark" />
+                <ol class="relative mt-12 grid gap-6 md:grid-cols-3 md:gap-8">
+                    @foreach ($site->get('how_steps', []) as $step)
+                        <li class="reveal relative rounded-[var(--radius-card)] border border-white/10 bg-white/[0.04] p-7 text-center">
+                            <span class="relative mx-auto flex size-16 items-center justify-center rounded-full border border-orange/40 bg-teal-900">
+                                <span class="display text-[2.25rem] leading-none text-orange">{{ $loop->iteration }}</span>
+                            </span>
+                            <h3 class="mt-5 text-xl font-bold text-white">{{ $step['title'] }}</h3>
+                            <p class="mx-auto mt-2.5 max-w-[300px] text-[0.9375rem] leading-relaxed">{{ $step['text'] }}</p>
+                        </li>
+                    @endforeach
+                </ol>
+                <div class="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                    <x-phone class="btn btn-primary btn-lg" label="Call" />
+                    <a href="{{ route('contact', ['service' => $service->slug]) }}" class="btn btn-ghost-light btn-lg">Request help online</a>
+                </div>
+            </div>
+        </section>
+    @endif
+
     {{-- FAQs --}}
     @if (count($service->faqList()))
         <section class="section bg-white" aria-labelledby="service-faq">

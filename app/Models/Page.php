@@ -76,9 +76,11 @@ class Page extends Model
 
     public static function urlFor(string $systemKey, string $fallback = '/'): string
     {
-        static $cache = [];
-        $cache[$systemKey] ??= static::query()->where('system_key', $systemKey)->published()->value('slug');
+        $slug = \App\Support\ContentCache::remember(
+            "page-slug:{$systemKey}",
+            fn () => (string) (static::query()->where('system_key', $systemKey)->published()->value('slug') ?? '')
+        );
 
-        return $cache[$systemKey] ? url($cache[$systemKey]) : url($fallback);
+        return $slug !== '' ? url($slug) : url($fallback);
     }
 }
