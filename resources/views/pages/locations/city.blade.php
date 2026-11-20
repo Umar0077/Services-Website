@@ -8,7 +8,7 @@
 
     <section class="section">
         <div class="container-site grid gap-12 lg:grid-cols-[1fr_380px] lg:gap-16">
-            <div>
+            <div class="min-w-0">
                 <p class="eyebrow mb-4">Local considerations</p>
                 <h2 class="h-section">Home comfort in {{ $city->name }}</h2>
                 <div class="prose-article mt-8">{!! \App\Support\RichText::render($city->local_info) !!}</div>
@@ -16,7 +16,7 @@
                     <div class="prose-article mt-10">{!! \App\Support\RichText::render($city->body) !!}</div>
                 @endif
             </div>
-            <aside class="space-y-6 lg:sticky lg:top-[calc(var(--header-h)+24px)] lg:self-start">
+            <aside class="min-w-0 space-y-6 lg:sticky lg:top-[calc(var(--header-h)+24px)] lg:self-start">
                 <div class="surface-teal on-dark rounded-[20px] p-7">
                     <p class="display text-[2.25rem] text-white">Request help in {{ $city->name }}</p>
                     <p class="mt-2 text-[0.9375rem] leading-relaxed">Call to describe the problem. We work to connect you with an available independent provider; coverage varies by area.</p>

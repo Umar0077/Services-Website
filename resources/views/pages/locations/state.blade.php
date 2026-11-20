@@ -8,7 +8,7 @@
 
     <section class="section">
         <div class="container-site grid gap-12 lg:grid-cols-[1fr_380px] lg:gap-16">
-            <div>
+            <div class="min-w-0">
                 @if (filled($state->climate))
                     <p class="eyebrow mb-4">Climate considerations</p>
                     <h2 class="h-section">Heating &amp; cooling in {{ $state->name }}</h2>
@@ -18,7 +18,7 @@
                     <div class="prose-article mt-10">{!! \App\Support\RichText::render($state->body) !!}</div>
                 @endif
             </div>
-            <aside class="space-y-6 lg:sticky lg:top-[calc(var(--header-h)+24px)] lg:self-start">
+            <aside class="min-w-0 space-y-6 lg:sticky lg:top-[calc(var(--header-h)+24px)] lg:self-start">
                 <div class="surface-teal on-dark rounded-[20px] p-7">
                     <p class="display text-[2.25rem] text-white">Request help in {{ $state->name }}</p>
                     <p class="mt-2 text-[0.9375rem] leading-relaxed">We work to connect homeowners with available independent providers. Provider coverage varies by area.</p>

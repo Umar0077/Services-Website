@@ -19,7 +19,7 @@
     {{-- Overview + sticky request card --}}
     <section class="section">
         <div class="container-site grid gap-12 lg:grid-cols-[1fr_380px] lg:gap-16">
-            <div>
+            <div class="min-w-0">
                 <p class="eyebrow mb-4">Overview</p>
                 <h2 class="h-section">About {{ strtolower($service->label()) }}</h2>
                 <div class="prose-article mt-8">{!! \App\Support\RichText::render($service->overview) !!}</div>
@@ -40,7 +40,7 @@
                 @endif
             </div>
 
-            <aside class="lg:sticky lg:top-[calc(var(--header-h)+24px)] lg:self-start" aria-label="Get help">
+            <aside class="min-w-0 lg:sticky lg:top-[calc(var(--header-h)+24px)] lg:self-start" aria-label="Get help">
                 <div class="surface-teal on-dark rounded-[20px] p-7">
                     <p class="display text-[2.25rem] text-white">Get connected</p>
                     <p class="mt-2 text-[0.9375rem] leading-relaxed">Describe the problem and we will work to connect you with an available independent provider in your area.</p>

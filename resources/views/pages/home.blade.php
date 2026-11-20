@@ -95,11 +95,11 @@
     </section>
 
     {{-- WHY CHOOSE US --}}
-    <section class="section bg-mint" aria-labelledby="why-heading">
+    <section class="section overflow-x-clip bg-mint" aria-labelledby="why-heading">
         <div class="container-site grid items-center gap-12 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
             <div class="reveal relative">
                 <x-picture :media="$whyMedia" sizes="(min-width: 1024px) 560px, 100vw" class="aspect-[4/3.4] w-full rounded-[20px] object-cover shadow-[var(--shadow-lift)]" />
-                <div class="absolute -bottom-6 left-4 right-4 rounded-2xl bg-white p-5 shadow-[var(--shadow-lift)] sm:left-auto sm:-right-4 sm:max-w-[300px] md:-right-8">
+                <div class="absolute -bottom-6 left-4 right-4 rounded-2xl bg-white p-5 shadow-[var(--shadow-lift)] sm:left-auto sm:right-4 sm:max-w-[300px] lg:-right-8">
                     <p class="display text-[1.75rem] text-ink">You decide.</p>
                     <p class="mt-1 text-sm leading-relaxed">Providers assess your system and explain the options. Whether to hire them is always your call.</p>
                 </div>
