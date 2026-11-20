@@ -77,10 +77,14 @@ php artisan storage:link
 ```
 
 ```bash
+php artisan deploy:check
+```
+
+```bash
 php artisan optimize
 ```
 
-`DemoSeeder` refuses to run in production. Re-running `CoreSeeder` / `LaunchContentSeeder` later would overwrite edited launch content, so run them only once.
+`DemoSeeder` refuses to run in production. Re-running `CoreSeeder` / `LaunchContentSeeder` later would overwrite edited launch content, so run them only once. Never run `migrate:fresh` or `db:wipe` on production.
 
 ## Updates
 
@@ -93,12 +97,27 @@ git pull && composer install --no-dev --optimize-autoloader && npm ci && npm run
 ```
 
 ```bash
-php artisan migrate --force && php artisan optimize
+php artisan deploy:check && php artisan migrate --force && php artisan optimize
 ```
 
 ```bash
 php artisan up
 ```
+
+> **Frontend asset safety (`public/hot`):** `npm run build` automatically removes any stale `public/hot` file and generates `public/build/manifest.json`. Always run `php artisan deploy:check` during deployment — it fails with exit code `1` if `public/hot` is present or if compiled CSS/JS bundles in `public/build/` are missing.
+
+## Storage permissions, backups and rollback
+
+- **Permissions:** Ensure `storage/` and `bootstrap/cache/` are writable by the PHP-FPM / web server user (`chmod -R ug+rwx storage bootstrap/cache`) and that `php artisan storage:link` points `public/storage` to `storage/app/public`.
+- **Database backups:** Schedule daily automated MySQL dumps before deploys and nightly (`mysqldump --single-transaction --routines --triggers -u <user> -p <db> | gzip > backup-$(date +%F).sql.gz`) and store encrypted copies off-server.
+- **File backups:** Back up `storage/app/public/` (uploaded media library and generated WebP variants) alongside the database backup.
+- **Rollback procedure:**
+  1. Put the site in maintenance mode: `php artisan down --retry=30`
+  2. Check out the previous release commit: `git checkout <previous-commit-hash>`
+  3. Restore dependencies and frontend assets: `composer install --no-dev --optimize-autoloader && npm ci && npm run build`
+  4. If the release included a schema migration that must be reverted, run `php artisan migrate:rollback --step=1 --force` (or restore the pre-deploy database snapshot — never use `migrate:fresh` or `db:wipe`).
+  5. Verify assets and clear caches: `php artisan deploy:check && php artisan optimize`
+  6. Bring the site back online: `php artisan up`
 
 ## Scheduler and queue
 

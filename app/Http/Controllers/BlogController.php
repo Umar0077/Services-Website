@@ -19,7 +19,7 @@ class BlogController extends Controller
 
         return $this->listing($request, Post::published(), $search, null, null, SeoData::make(
             $search ? "Search results for “{$search}”" : 'HVAC Resource Center: Guides & Advice',
-            'Practical guides on air conditioning, heating, heat pumps, indoor air quality, and HVAC maintenance for U.S. homeowners and property managers.',
+            'Practical guides on air conditioning, heating, heat pumps, indoor air quality, and HVAC maintenance for U.S. homeowners.',
             route('blog.index'),
         ));
     }
@@ -49,15 +49,23 @@ class BlogController extends Controller
         }
 
         $page = max(1, (int) $request->query('page', 1));
-        $showFeatured = $search === '' && ! $tag && $page === 1;
+        $hasFeatured = $search === '' && ! $tag;
 
-        $featured = $showFeatured
-            ? (clone $query)->with(['featuredMedia', 'category', 'author'])->orderByDesc('is_featured')->latest('published_at')->first()
+        $featuredPost = $hasFeatured
+            ? (clone $query)
+                ->with(['featuredMedia', 'category', 'author'])
+                ->orderByDesc('is_featured')
+                ->orderByDesc('published_at')
+                ->orderByDesc('id')
+                ->first()
             : null;
 
+        $featured = $page === 1 ? $featuredPost : null;
+
         $posts = $query->with(['featuredMedia', 'category', 'author'])
-            ->when($featured, fn ($q) => $q->whereKeyNot($featured->id))
-            ->latest('published_at')
+            ->when($featuredPost, fn ($q) => $q->whereKeyNot($featuredPost->id))
+            ->orderByDesc('published_at')
+            ->orderByDesc('id')
             ->paginate(9)
             ->withQueryString();
 
@@ -107,7 +115,7 @@ class BlogController extends Controller
             $related = $related->merge(
                 Post::published()->whereKeyNot($post->id)->whereNotIn('id', $related->pluck('id'))
                     ->when($post->category_id, fn ($q) => $q->orderByRaw('category_id = ? desc', [$post->category_id]))
-                    ->with(['featuredMedia', 'category', 'author'])->latest('published_at')->limit(3 - $related->count())->get()
+                    ->with(['featuredMedia', 'category', 'author'])->orderByDesc('published_at')->orderByDesc('id')->limit(3 - $related->count())->get()
             );
         }
 

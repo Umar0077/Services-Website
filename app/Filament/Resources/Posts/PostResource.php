@@ -72,9 +72,14 @@ class PostResource extends Resource
                         ->inline()
                         ->live()
                         ->afterStateUpdated(function (Get $get, \Filament\Schemas\Components\Utilities\Set $set, ?string $state) {
-                            // Switching to HTML starts from the current article so nothing is lost.
-                            if ($state === 'html' && blank($get('body_html'))) {
-                                $set('body_html', Fields::toText($get('body')));
+                            // Switching between editor modes carries over the current article so nothing is lost.
+                            if ($state === 'html') {
+                                $current = Fields::toText($get('body'));
+                                if (filled($current) || blank($get('body_html'))) {
+                                    $set('body_html', $current);
+                                }
+                            } elseif ($state === 'rich' && filled($get('body_html'))) {
+                                $set('body', (string) $get('body_html'));
                             }
                         })
                         ->helperText(fn (Get $get) => $get('body_format') === 'html'

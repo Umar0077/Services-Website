@@ -53,9 +53,11 @@ class RevisionsRelationManager extends RelationManager
                     ->requiresConfirmation()
                     ->modalDescription('The current content is saved as a new revision first, so this can be undone.')
                     ->action(function (PostRevision $record) {
-                        $this->getOwnerRecord()->update(['title' => $record->title, 'excerpt' => $record->excerpt, 'body' => $record->body]);
+                        /** @var Post $post */
+                        $post = $this->getOwnerRecord();
+                        $post->restoreRevision($record);
                         Notification::make()->title('Revision restored')->success()->send();
-                        $this->redirect(\App\Filament\Resources\Posts\PostResource::getUrl('edit', ['record' => $this->getOwnerRecord()]));
+                        $this->redirect(\App\Filament\Resources\Posts\PostResource::getUrl('edit', ['record' => $post]));
                     }),
             ]);
     }

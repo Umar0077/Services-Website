@@ -32,9 +32,17 @@ class Post extends Model
     protected static function booted(): void
     {
         static::saving(function (Post $post) {
-            // HTML mode: the hand-written code is the article. Keep body in sync so everything downstream works.
+            // HTML mode: the hand-written code is the article. Keep body and body_html in sync so
+            // rendering, search, revisions, SEO checks, and direct updates to either column stay consistent.
             if ($post->body_format === 'html') {
-                $post->body = (string) $post->body_html;
+                if ($post->isDirty('body') && ! $post->isDirty('body_html')) {
+                    $post->body_html = (string) $post->body;
+                } else {
+                    $post->body = (string) ($post->body_html ?? $post->body);
+                    $post->body_html = (string) $post->body;
+                }
+            } else {
+                $post->body_html = (string) $post->body;
             }
 
             // Authors cannot publish or schedule, whatever the submitted form says.
@@ -67,10 +75,25 @@ class Post extends Model
                     'title' => $post->getOriginal('title'),
                     'excerpt' => $post->getOriginal('excerpt'),
                     'body' => $post->getOriginal('body'),
+                    'body_format' => $post->getOriginal('body_format') ?: 'rich',
                     'created_at' => now(),
                 ]);
             }
         });
+    }
+
+    /** Restore a previous revision while preserving SEO metadata, slug, and publishing status. */
+    public function restoreRevision(PostRevision $revision): void
+    {
+        $format = $revision->body_format ?: ($this->body_format ?: 'rich');
+
+        $this->update([
+            'title' => $revision->title,
+            'excerpt' => $revision->excerpt,
+            'body_format' => $format,
+            'body' => $revision->body,
+            'body_html' => $revision->body,
+        ]);
     }
 
     public function scopePublished(Builder $query): void

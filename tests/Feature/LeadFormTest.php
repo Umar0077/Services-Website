@@ -92,4 +92,16 @@ class LeadFormTest extends SeededTestCase
         $this->get('/call-hvac?phone=9005551234')->assertDontSee('(900) 555-1234')->assertSee('(888) 217-5445');
         $this->get('/call-hvac?pn=unknown')->assertSee('(888) 217-5445');
     }
+
+    public function test_lead_is_saved_even_when_email_notification_throws(): void
+    {
+        config(['site.lead_notification_email' => 'leads@example.com']);
+        Notification::shouldReceive('send')
+            ->once()
+            ->andThrow(new \RuntimeException('SMTP connection refused'));
+
+        $before = Lead::count();
+        $this->post('/contact', $this->payload())->assertRedirect('/contact/thank-you');
+        $this->assertSame($before + 1, Lead::count());
+    }
 }

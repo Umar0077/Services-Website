@@ -4,12 +4,15 @@ namespace App\Filament\Resources\Media;
 
 use App\Models\Media;
 use BackedEnum;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -22,6 +25,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use UnitEnum;
 
 class MediaResource extends Resource
@@ -87,8 +91,57 @@ class MediaResource extends Resource
             ])
             ->recordActions([
                 EditAction::make(),
-                DeleteAction::make()->authorize(fn (Media $record) => auth()->user()->can('delete', $record))
+                DeleteAction::make()
+                    ->authorize(fn (Media $record) => auth()->user()->can('delete', $record))
+                    ->before(function (DeleteAction $action, Media $record) {
+                        $usage = $record->usageCount();
+                        if ($usage > 0) {
+                            Notification::make()
+                                ->title('Cannot delete image in use')
+                                ->body("“{$record->filename}” is referenced by {$usage} item(s). Remove it from all content before deleting.")
+                                ->danger()
+                                ->send();
+                            $action->halt();
+                        }
+                    })
                     ->modalDescription('The file and all its generated sizes will be removed.'),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make()
+                        ->authorize(fn () => auth()->user()->can('deleteAny', Media::class))
+                        ->action(function (Collection $records) {
+                            $deleted = 0;
+                            $blocked = 0;
+                            foreach ($records as $record) {
+                                if ($record->isInUse() || ! auth()->user()->can('delete', $record)) {
+                                    $blocked++;
+                                    continue;
+                                }
+                                if ($record->delete()) {
+                                    $deleted++;
+                                } else {
+                                    $blocked++;
+                                }
+                            }
+
+                            if ($deleted > 0) {
+                                Notification::make()
+                                    ->title("Deleted {$deleted} image(s)")
+                                    ->success()
+                                    ->send();
+                            }
+
+                            if ($blocked > 0) {
+                                Notification::make()
+                                    ->title("Cannot delete {$blocked} image(s) in use")
+                                    ->body('Images actively referenced by pages, posts, services, locations, or site settings were skipped.')
+                                    ->danger()
+                                    ->send();
+                            }
+                        })
+                        ->deselectRecordsAfterCompletion(),
+                ]),
             ]);
     }
 

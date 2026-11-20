@@ -45,6 +45,7 @@ class AppServiceProvider extends ServiceProvider
 
         if ($this->app->isProduction()) {
             URL::forceScheme('https');
+            \Illuminate\Support\Facades\Vite::useHotFile(storage_path('framework/vite.hot'));
         }
 
         Paginator::defaultView('components.pagination');

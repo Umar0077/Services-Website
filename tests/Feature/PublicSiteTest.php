@@ -143,4 +143,172 @@ class PublicSiteTest extends SeededTestCase
         $this->assertStringNotContainsString('onclick', $html);
         $this->assertStringContainsString('<p>Safe</p>', $html);
     }
+
+    public function test_deploy_check_fails_when_hot_file_exists_and_compiled_assets_load(): void
+    {
+        $hotPath = public_path('hot');
+        @unlink($hotPath);
+
+        $this->artisan('deploy:check')->assertSuccessful();
+
+        $homeHtml = $this->get('/')->assertOk()->getContent();
+        $this->assertStringContainsString('/build/assets/', $homeHtml);
+        $this->assertStringNotContainsString(':5173', $homeHtml);
+
+        file_put_contents($hotPath, 'http://localhost:5173');
+        try {
+            $this->artisan('deploy:check')->assertFailed();
+        } finally {
+            @unlink($hotPath);
+        }
+    }
+
+    public function test_html_and_visual_blog_revisions_restore_correctly_and_sanitize_html(): void
+    {
+        $post = Post::published()->first();
+        $originalStatus = $post->status;
+        $originalPublishedAt = $post->published_at?->toIso8601String();
+        $post->update([
+            'seo_title' => 'Custom SEO Title',
+            'seo_description' => 'Custom SEO Description',
+            'body_format' => 'html',
+            'body_html' => '<h2>HTML Version 1</h2><p>First HTML paragraph.</p><script>alert("xss")</script>',
+        ]);
+
+        $this->assertSame('<h2>HTML Version 1</h2><p>First HTML paragraph.</p><script>alert("xss")</script>', $post->fresh()->body);
+
+        // Save Version 2 in HTML mode (creates revision for HTML Version 1)
+        $post->update([
+            'title' => 'Updated HTML Title V2',
+            'excerpt' => 'Updated Excerpt V2',
+            'body_format' => 'html',
+            'body_html' => '<h2>HTML Version 2</h2><p>Second HTML paragraph.</p>',
+        ]);
+
+        $htmlV1Revision = $post->revisions()->where('body', 'like', '%HTML Version 1%')->firstOrFail();
+        $this->assertSame('html', $htmlV1Revision->body_format);
+
+        // Restore HTML Version 1 revision
+        $post->restoreRevision($htmlV1Revision);
+        $post->refresh();
+
+        $this->assertSame('html', $post->body_format);
+        $this->assertStringContainsString('HTML Version 1', $post->body);
+        $this->assertStringContainsString('HTML Version 1', $post->body_html);
+        $this->assertStringNotContainsString('HTML Version 2', $post->body);
+        $this->assertSame('Custom SEO Title', $post->seo_title);
+        $this->assertSame('Custom SEO Description', $post->seo_description);
+        $this->assertSame($originalStatus, $post->status);
+        $this->assertSame($originalPublishedAt, $post->published_at?->toIso8601String());
+
+        // Public rendering of restored HTML revision is sanitized
+        $rendered = $this->get($post->publicUrl())->assertOk()->getContent();
+        $this->assertStringContainsString('HTML Version 1', $rendered);
+        $this->assertStringNotContainsString('<script>alert("xss")</script>', $rendered);
+
+        // Switch to visual editor ('rich') mode and save Version 3
+        $post->update([
+            'body_format' => 'rich',
+            'body' => '<h2>Visual Version 3</h2><p>Visual editor content.</p>',
+        ]);
+        $this->assertSame('rich', $post->fresh()->body_format);
+        $this->assertSame('<h2>Visual Version 3</h2><p>Visual editor content.</p>', $post->fresh()->body);
+        $this->assertSame('<h2>Visual Version 3</h2><p>Visual editor content.</p>', $post->fresh()->body_html);
+
+        // Switch back to HTML mode and save Version 4
+        $post->update([
+            'body_format' => 'html',
+            'body_html' => '<h2>HTML Version 4</h2><p>Fourth version in HTML.</p>',
+        ]);
+
+        // Restore the Visual Version 3 revision across modes
+        $richV3Revision = $post->revisions()->where('body', 'like', '%Visual Version 3%')->firstOrFail();
+        $this->assertSame('rich', $richV3Revision->body_format);
+        $post->restoreRevision($richV3Revision);
+        $post->refresh();
+
+        $this->assertSame('rich', $post->body_format);
+        $this->assertSame('<h2>Visual Version 3</h2><p>Visual editor content.</p>', $post->body);
+        $this->assertSame('<h2>Visual Version 3</h2><p>Visual editor content.</p>', $post->body_html);
+    }
+
+    public function test_blog_pagination_has_no_duplicates_across_pages_same_dates_categories_and_search(): void
+    {
+        $category = \App\Models\Category::first();
+        $sameTimestamp = now()->subHours(2);
+
+        // Create 15 additional published posts with identical published_at to test tie-breaking and 3 pages of pagination
+        for ($i = 1; $i <= 15; $i++) {
+            Post::query()->create([
+                'title' => "Pagination Test Article {$i}",
+                'slug' => "pagination-test-article-{$i}",
+                'excerpt' => "Unique searchable keyword pagetesttoken excerpt {$i}.",
+                'body' => "<p>Unique searchable keyword pagetesttoken body {$i}.</p>",
+                'status' => \App\Enums\PostStatus::Published,
+                'published_at' => $sameTimestamp,
+                'is_featured' => $i === 7,
+                'category_id' => $category->id,
+            ]);
+        }
+
+        $totalPublished = Post::published()->count();
+        $this->assertGreaterThan(19, $totalPublished);
+
+        // Collect all post IDs across every pagination page of /blog
+        $seenIds = [];
+        $page1 = $this->get('/blog');
+        $page1->assertOk();
+        $featured = $page1->viewData('featured');
+        $this->assertNotNull($featured, 'Page 1 must display a featured post');
+        $seenIds[] = $featured->id;
+
+        $paginator1 = $page1->viewData('posts');
+        $this->assertSame($totalPublished - 1, $paginator1->total());
+        foreach ($paginator1->items() as $item) {
+            $this->assertNotContains($item->id, $seenIds, "Post {$item->id} duplicated on page 1");
+            $seenIds[] = $item->id;
+        }
+
+        $lastPage = $paginator1->lastPage();
+        $this->assertGreaterThanOrEqual(3, $lastPage);
+
+        for ($p = 2; $p <= $lastPage; $p++) {
+            $resp = $this->get("/blog?page={$p}")->assertOk();
+            $this->assertNull($resp->viewData('featured'), "Featured hero card must not repeat on page {$p}");
+            $paginator = $resp->viewData('posts');
+            $this->assertSame($totalPublished - 1, $paginator->total());
+            foreach ($paginator->items() as $item) {
+                $this->assertNotContains($item->id, $seenIds, "Post {$item->id} duplicated on page {$p}");
+                $seenIds[] = $item->id;
+            }
+        }
+
+        $this->assertCount($totalPublished, $seenIds, 'Every published post must appear exactly once across all pagination pages');
+
+        // Category pagination: no duplicates between page 1 and page 2
+        $catPage1 = $this->get(route('blog.category', $category))->assertOk();
+        $catSeen = [$catPage1->viewData('featured')->id];
+        foreach ($catPage1->viewData('posts')->items() as $item) {
+            $this->assertNotContains($item->id, $catSeen);
+            $catSeen[] = $item->id;
+        }
+        $catPage2 = $this->get(route('blog.category', ['category' => $category->slug, 'page' => 2]))->assertOk();
+        foreach ($catPage2->viewData('posts')->items() as $item) {
+            $this->assertNotContains($item->id, $catSeen, "Category post {$item->id} duplicated on page 2");
+            $catSeen[] = $item->id;
+        }
+
+        // Search pagination: preserves query parameter and has no duplicates across page 1 and page 2
+        $searchPage1 = $this->get('/blog?q=pagetesttoken')->assertOk();
+        $this->assertNull($searchPage1->viewData('featured'));
+        $searchPaginator1 = $searchPage1->viewData('posts');
+        $this->assertSame(15, $searchPaginator1->total());
+        $this->assertStringContainsString('q=pagetesttoken', $searchPaginator1->url(2));
+        $searchIds1 = collect($searchPaginator1->items())->pluck('id')->all();
+
+        $searchPage2 = $this->get('/blog?q=pagetesttoken&page=2')->assertOk();
+        $searchIds2 = collect($searchPage2->viewData('posts')->items())->pluck('id')->all();
+        $this->assertSame([], array_intersect($searchIds1, $searchIds2));
+        $this->assertCount(15, array_unique(array_merge($searchIds1, $searchIds2)));
+    }
 }

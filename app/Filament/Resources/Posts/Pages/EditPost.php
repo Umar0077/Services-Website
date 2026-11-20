@@ -17,6 +17,15 @@ class EditPost extends EditRecord
 {
     protected static string $resource = PostResource::class;
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        if (filled($data['body'] ?? null) && (($data['body_format'] ?? 'rich') === 'html' || blank($data['body_html'] ?? null))) {
+            $data['body_html'] = $data['body'];
+        }
+
+        return $data;
+    }
+
     protected function getHeaderActions(): array
     {
         return [
